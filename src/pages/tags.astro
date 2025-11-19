@@ -11,13 +11,14 @@ channel.seo = {
 }
 
 // Get tags from environment variable or auto-detect from posts
-const envTags = getEnv(import.meta.env, Astro, 'TAGS') || ''
+const envTags = getEnv(import.meta.env, Astro, 'TAGS')
 let tags = []
 
-if (envTags === 'true' || envTags === 'TRUE') {
+// Handle both boolean true and string 'true'/'TRUE' for auto-detection
+if (envTags === true || envTags === 'true' || envTags === 'TRUE') {
   // Auto mode: extract all tags from posts
   tags = await getAllTags(Astro)
-} else if (envTags && envTags.length > 0) {
+} else if (envTags && typeof envTags === 'string' && envTags.length > 0) {
   // Manual mode: use specified tags
   tags = envTags
     .split(',')
