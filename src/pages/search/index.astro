@@ -1,0 +1,11 @@
+---
+// Redirect search form submissions to the proper search route
+const q = Astro.url.searchParams.get('q') || ''
+
+if (q) {
+  return Astro.redirect(`/search/${encodeURIComponent(q)}`)
+}
+
+// If no query, redirect to home
+return Astro.redirect('/')
+---

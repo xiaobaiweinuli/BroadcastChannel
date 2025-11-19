@@ -122,8 +122,10 @@ STATIC_PROXY=
 ## Enable Google Site Search
 GOOGLE_SEARCH_SITE=memo.miantiao.me
 
-## Enable tags page, separate tags with commas
-TAGS=tag1,tag2,tag3
+## Enable tags page, use "true" for auto-detection or specify tags separated by commas
+TAGS=true
+## Or manually specify tags:
+## TAGS=tag1,tag2,tag3
 
 ## Show comments
 COMMENTS=true

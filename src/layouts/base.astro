@@ -49,7 +49,7 @@ const seoParams = {
 }
 
 const GOOGLE_SEARCH_SITE = getEnv(import.meta.env, Astro, 'GOOGLE_SEARCH_SITE')
-const searchAction = GOOGLE_SEARCH_SITE ? 'https://www.google.com/search' : '/search/result'
+const searchAction = GOOGLE_SEARCH_SITE ? 'https://www.google.com/search' : `${SITE_URL}search`
 
 const HEADER_INJECT = getEnv(import.meta.env, Astro, 'HEADER_INJECT')
 const FOOTER_INJECT = getEnv(import.meta.env, Astro, 'FOOTER_INJECT')
@@ -68,7 +68,7 @@ const navs = (getEnv(import.meta.env, Astro, 'NAVS') || '')
 ---
 
 <!doctype html>
-<html lang={locale ?? 'en'}>
+<html lang={locale ?? 'en'} data-theme="light">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -168,5 +168,203 @@ const navs = (getEnv(import.meta.env, Astro, 'NAVS') || '')
       <img {...backToTopIcon} alt="Back to Top" />
     </a>
     <Fragment set:html={FOOTER_INJECT} />
+    <script is:inline>
+      (() => {
+        if (typeof window === 'undefined') return
+        if (document.getElementById('image-preview-overlay')) return
+
+        const overlay = document.createElement('div')
+        overlay.id = 'image-preview-overlay'
+        overlay.setAttribute('aria-hidden', 'true')
+        overlay.innerHTML = `
+          <div class="preview-backdrop" data-preview-close></div>
+          <div class="preview-content" role="dialog" aria-modal="true">
+            <button type="button" class="preview-close" aria-label="Close image preview" data-preview-close>&times;</button>
+            <button type="button" class="preview-nav prev" aria-label="Previous image">&lsaquo;</button>
+            <img src="" alt="" />
+            <button type="button" class="preview-nav next" aria-label="Next image">&rsaquo;</button>
+          </div>
+        `
+        document.body.appendChild(overlay)
+
+        const imgEl = overlay.querySelector('img')
+        const prevBtn = overlay.querySelector('.preview-nav.prev')
+        const nextBtn = overlay.querySelector('.preview-nav.next')
+        const closeTargets = overlay.querySelectorAll('[data-preview-close]')
+
+        let images = []
+        let index = 0
+
+        const updateView = () => {
+          if (!images.length) {
+            imgEl.removeAttribute('src')
+            overlay.classList.remove('is-visible')
+            overlay.setAttribute('aria-hidden', 'true')
+            document.body.classList.remove('preview-open')
+            return
+          }
+
+          imgEl.src = images[index]
+          imgEl.alt = `Preview ${index + 1} of ${images.length}`
+          overlay.classList.add('is-visible')
+          overlay.setAttribute('aria-hidden', 'false')
+          document.body.classList.add('preview-open')
+
+          const singleImage = images.length <= 1
+          prevBtn.disabled = singleImage
+          nextBtn.disabled = singleImage
+        }
+
+        const show = (list, startIndex = 0) => {
+          if (!Array.isArray(list) || !list.length) return
+          images = list
+          index = Math.min(Math.max(startIndex, 0), images.length - 1)
+          updateView()
+        }
+
+        const close = () => {
+          images = []
+          index = 0
+          updateView()
+        }
+
+        const showPrev = () => {
+          if (!images.length) return
+          index = (index - 1 + images.length) % images.length
+          updateView()
+        }
+
+        const showNext = () => {
+          if (!images.length) return
+          index = (index + 1) % images.length
+          updateView()
+        }
+
+        prevBtn.addEventListener('click', (event) => {
+          event.stopPropagation()
+          showPrev()
+        })
+
+        nextBtn.addEventListener('click', (event) => {
+          event.stopPropagation()
+          showNext()
+        })
+
+        closeTargets.forEach((target) => {
+          target.addEventListener('click', close)
+        })
+
+        document.addEventListener('keydown', (event) => {
+          if (!overlay.classList.contains('is-visible')) return
+          if (event.key === 'Escape') {
+            close()
+          }
+          else if (event.key === 'ArrowLeft') {
+            showPrev()
+          }
+          else if (event.key === 'ArrowRight') {
+            showNext()
+          }
+        })
+
+        document.addEventListener('click', (event) => {
+          const button = event.target.closest('.image-preview-button[data-image-index]')
+          if (!button) return
+
+          const container = button.closest('.image-list-container')
+          if (!container) return
+
+          const buttons = [...container.querySelectorAll('.image-preview-button[data-image-url]')]
+          if (!buttons.length) return
+
+          const list = buttons.map((btn) => btn.dataset.imageUrl).filter(Boolean)
+          if (!list.length) return
+
+          const startIndex = Number(button.dataset.imageIndex) || 0
+          show(list, Math.min(startIndex, list.length - 1))
+        })
+      })()
+    </script>
+    <script is:inline>
+      (() => {
+        if (typeof window === 'undefined')
+          return
+
+        const STORAGE_KEY = 'bc-theme-preference'
+        const root = document.documentElement
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)')
+        const toggleButton = document.querySelector('[data-theme-toggle]')
+        let autoTimer
+
+        const computeAutoTheme = () => {
+          const hour = new Date().getHours()
+          const shouldUseDark = prefersDark.matches || hour >= 19 || hour < 6
+          return shouldUseDark ? 'dark' : 'light'
+        }
+
+        const updateToggleButton = (theme) => {
+          if (!toggleButton)
+            return
+          toggleButton.dataset.theme = theme
+          toggleButton.setAttribute('aria-label', theme === 'dark' ? '切换到浅色模式' : '切换到深色模式')
+        }
+
+        const applyTheme = (theme) => {
+          root.dataset.theme = theme
+          updateToggleButton(theme)
+        }
+
+        const syncTheme = () => {
+          const stored = localStorage.getItem(STORAGE_KEY)
+          if (stored) {
+            applyTheme(stored)
+            return
+          }
+          applyTheme(computeAutoTheme())
+        }
+
+        const startAutoTimer = () => {
+          clearInterval(autoTimer)
+          autoTimer = setInterval(() => {
+            if (!localStorage.getItem(STORAGE_KEY))
+              applyTheme(computeAutoTheme())
+          }, 60 * 1000)
+        }
+
+        syncTheme()
+        startAutoTimer()
+
+        prefersDark.addEventListener('change', () => {
+          if (!localStorage.getItem(STORAGE_KEY))
+            syncTheme()
+        })
+
+        if (toggleButton) {
+          toggleButton.addEventListener('click', () => {
+            const stored = localStorage.getItem(STORAGE_KEY)
+            const current = stored || root.dataset.theme
+            const next = current === 'dark' ? 'light' : 'dark'
+            localStorage.setItem(STORAGE_KEY, next)
+            applyTheme(next)
+          })
+
+          const resetToAuto = () => {
+            localStorage.removeItem(STORAGE_KEY)
+            syncTheme()
+            startAutoTimer()
+          }
+
+          toggleButton.addEventListener('contextmenu', (event) => {
+            event.preventDefault()
+            resetToAuto()
+          })
+
+          toggleButton.addEventListener('dblclick', (event) => {
+            event.preventDefault()
+            resetToAuto()
+          })
+        }
+      })()
+    </script>
   </body>
 </html>

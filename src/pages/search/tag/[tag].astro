@@ -1,0 +1,17 @@
+---
+import List from '../../../components/list.astro'
+import { getChannelInfo } from '../../../lib/telegram'
+
+const tagName = decodeURIComponent(Astro.params.tag || '')
+const q = `#${tagName}`
+
+const channel = await getChannelInfo(Astro, {
+  q,
+})
+
+channel.seo = {
+  title: `Tag: ${tagName}`,
+}
+---
+
+<List channel={channel} before={false} after={false} searchQuery={q} />

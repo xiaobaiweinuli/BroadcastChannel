@@ -2,14 +2,26 @@
 import List from '../../components/list.astro'
 import { getChannelInfo } from '../../lib/telegram'
 
-const q = Astro.url.searchParams.get('q') || Astro.params.q
+// Handle both /search/keyword and /search/tag/tagname
+const rawQuery = Astro.url.searchParams.get('q') || decodeURIComponent(Astro.params.q || '')
+const isTagRoute = Astro.url.pathname.includes('/search/tag/')
+
+let q = rawQuery
+if (isTagRoute && !rawQuery.startsWith('#')) {
+  q = `#${rawQuery}`
+}
+
 const channel = await getChannelInfo(Astro, {
   q,
 })
 
+const isTagSearch = q.startsWith('#')
+const searchType = isTagSearch ? 'Tag' : 'Search'
+const displayQuery = isTagSearch ? q.substring(1) : q
+
 channel.seo = {
-  title: `${q}`,
+  title: `${searchType}: ${displayQuery}`,
 }
 ---
 
-<List channel={channel} before={false} after={false} />
+<List channel={channel} before={false} after={false} searchQuery={q} />

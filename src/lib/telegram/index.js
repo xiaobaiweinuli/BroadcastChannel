@@ -6,7 +6,7 @@ import { getEnv } from '../env'
 import prism from '../prism'
 
 const cache = new LRUCache({
-  ttl: 1000 * 60 * 5, // 5 minutes
+  ttl: 1000 * 15, // 15 seconds for fresher updates
   maxSize: 50 * 1024 * 1024, // 50MB
   sizeCalculation: (item) => {
     return JSON.stringify(item).length
@@ -37,17 +37,27 @@ function getImageStickers($, item, { staticProxy, index }) {
 function getImages($, item, { staticProxy, id, index, title }) {
   const images = $(item).find('.tgme_widget_message_photo_wrap')?.map((_index, photo) => {
     const url = $(photo).attr('style').match(/url\(["'](.*?)["']/)?.[1]
-    const popoverId = `modal-${id}-${_index}`
+    if (!url)
+      return null
+    const fullUrl = staticProxy + url
     return `
-      <button class="image-preview-button image-preview-wrap" popovertarget="${popoverId}" popovertargetaction="show">
-        <img src="${staticProxy + url}" alt="${title}" loading="${index > 15 ? 'eager' : 'lazy'}" />
-      </button>
-      <button class="image-preview-button modal" id="${popoverId}" popovertarget="${popoverId}" popovertargetaction="hide" popover>
-        <img class="modal-img" src="${staticProxy + url}" alt="${title}" loading="lazy" />
+      <button
+        class="image-preview-button image-preview-wrap"
+        type="button"
+        data-image-index="${_index}"
+        data-image-url="${fullUrl}"
+        aria-label="Open image preview"
+      >
+        <img src="${fullUrl}" alt="${title}" loading="${index > 15 ? 'eager' : 'lazy'}" />
       </button>
     `
-  })?.get()
-  return images.length ? `<div class="image-list-container ${images.length % 2 === 0 ? 'image-list-even' : 'image-list-odd'}">${images?.join('')}</div>` : ''
+  })?.get()?.filter(Boolean)
+
+  if (!images?.length)
+    return ''
+
+  const containerClass = images.length % 2 === 0 ? 'image-list-even' : 'image-list-odd'
+  return `<div class="image-list-container ${containerClass}" data-post-id="${id}">${images.join('')}</div>`
 }
 
 function getVideo($, item, { staticProxy, index }) {
@@ -135,7 +145,9 @@ function getPost($, item, { channel, staticProxy, index = 0 }) {
   const id = $(item).attr('data-post')?.replace(new RegExp(`${channel}/`, 'i'), '')
 
   const tags = $(content).find('a[href^="?q="]')?.each((_index, a) => {
-    $(a)?.attr('href', `/search/${encodeURIComponent($(a)?.text())}`)
+    const tagText = $(a)?.text()
+    const tagName = tagText?.replace('#', '')
+    $(a)?.attr('href', `/search/tag/${encodeURIComponent(tagName)}`)
   })?.map((_index, a) => $(a)?.text()?.replace('#', ''))?.get()
 
   return {
@@ -174,12 +186,23 @@ function getPost($, item, { channel, staticProxy, index = 0 }) {
 const unnessaryHeaders = ['host', 'cookie', 'origin', 'referer']
 
 export async function getChannelInfo(Astro, { before = '', after = '', q = '', type = 'list', id = '' } = {}) {
-  const cacheKey = JSON.stringify({ before, after, q, type, id })
-  const cachedResult = cache.get(cacheKey)
+  // Cache key without search query to reuse base data
+  const baseCacheKey = JSON.stringify({ before, after, q: '', type, id })
+  const cachedResult = cache.get(baseCacheKey)
+  const isRealtimeSearch = Boolean(q)
 
-  if (cachedResult) {
+  // If we have cached data, use it for search instead of fetching again
+  if (cachedResult && !isRealtimeSearch) {
     console.info('Match Cache', { before, after, q, type, id })
-    return JSON.parse(JSON.stringify(cachedResult))
+    // Deep clone to avoid modifying cached data
+    const result = JSON.parse(JSON.stringify(cachedResult))
+
+    // Apply search filtering if needed
+    if (q) {
+      result.posts = filterAndHighlightPosts(result.posts, q)
+    }
+
+    return result
   }
 
   // Where t.me can also be telegram.me, telegram.dog
@@ -196,13 +219,12 @@ export async function getChannelInfo(Astro, { before = '', after = '', q = '', t
     }
   })
 
-  console.info('Fetching', url, { before, after, q, type, id })
+  console.info('Fetching from Telegram', url, { before, after, q, type, id })
   const html = await $fetch(url, {
     headers,
     query: {
       before: before || undefined,
       after: after || undefined,
-      q: q || undefined,
     },
     retry: 3,
     retryDelay: 100,
@@ -211,7 +233,7 @@ export async function getChannelInfo(Astro, { before = '', after = '', q = '', t
   const $ = cheerio.load(html, {}, false)
   if (id) {
     const post = getPost($, null, { channel, staticProxy })
-    cache.set(cacheKey, post)
+    cache.set(baseCacheKey, post)
     return post
   }
   const posts = $('.tgme_channel_history  .tgme_widget_message_wrap')?.map((index, item) => {
@@ -226,6 +248,85 @@ export async function getChannelInfo(Astro, { before = '', after = '', q = '', t
     avatar: $('.tgme_page_photo_image img')?.attr('src'),
   }
 
-  cache.set(cacheKey, channelInfo)
+  // Always cache the base data (without search filtering)
+  if (!isRealtimeSearch) {
+    cache.set(baseCacheKey, channelInfo)
+  }
+
+  // Apply search filtering if needed (on a copy to avoid modifying cache)
+  if (q) {
+    const result = JSON.parse(JSON.stringify(channelInfo))
+    result.posts = filterAndHighlightPosts(result.posts, q)
+    return result
+  }
+
   return channelInfo
+}
+
+// Escape special regex characters
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+// Highlight search term in HTML content
+function highlightInHTML(html, searchTerm) {
+  if (!html || !searchTerm)
+    return html
+
+  const escapedTerm = escapeRegex(searchTerm)
+  const regex = new RegExp(`(${escapedTerm})`, 'gi')
+
+  // Replace text nodes only, avoiding HTML tags, including leading/trailing text
+  return html.replace(/(^|>)([^<>]+)(?=<|$)/g, (match, prefix, text) => {
+    const highlighted = text.replace(regex, '<mark class="search-highlight">$1</mark>')
+    return `${prefix}${highlighted}`
+  })
+}
+
+// Filter and highlight posts by search query
+function filterAndHighlightPosts(posts, q) {
+  const searchTerm = q.toLowerCase().trim()
+  const isTagSearch = searchTerm.startsWith('#')
+
+  if (isTagSearch) {
+    // Tag search: exact match on tags with highlighting
+    const tagName = searchTerm.substring(1)
+    return posts.filter(post =>
+      post.tags && post.tags.some(tag => tag.toLowerCase() === tagName),
+    ).map((post) => {
+      // Highlight the tag in content
+      return {
+        ...post,
+        content: highlightInHTML(post.content, `#${tagName}`),
+      }
+    })
+  }
+  else {
+    // Text search: partial keyword matching with highlighting
+    return posts.filter((post) => {
+      const titleMatch = post.title?.toLowerCase().includes(searchTerm)
+      const textMatch = post.text?.toLowerCase().includes(searchTerm)
+      return titleMatch || textMatch
+    }).map((post) => {
+      // Highlight the search term in content
+      return {
+        ...post,
+        content: highlightInHTML(post.content, searchTerm),
+      }
+    })
+  }
+}
+
+// Get all unique tags from channel posts
+export async function getAllTags(Astro) {
+  const channelInfo = await getChannelInfo(Astro, {})
+  const tagSet = new Set()
+
+  channelInfo.posts?.forEach((post) => {
+    if (post.tags && Array.isArray(post.tags)) {
+      post.tags.forEach(tag => tagSet.add(tag))
+    }
+  })
+
+  return Array.from(tagSet).sort()
 }

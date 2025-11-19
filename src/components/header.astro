@@ -98,6 +98,17 @@ const staticProxy = getEnv(import.meta.env, Astro, 'STATIC_PROXY') ?? '/static/'
         </a>
       )
     }
+    <button
+      type="button"
+      class="theme-toggle"
+      data-theme-toggle
+      data-theme="light"
+      aria-label="Toggle theme"
+      title="单击切换明暗，右键恢复自动"
+    >
+      <span class="theme-toggle__icon theme-toggle__icon--sun" aria-hidden="true">☀</span>
+      <span class="theme-toggle__icon theme-toggle__icon--moon" aria-hidden="true">🌙</span>
+    </button>
   </div>
 </div>
 

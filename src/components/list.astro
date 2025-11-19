@@ -4,7 +4,7 @@ import Header from '../components/header.astro'
 import Item from '../components/item.astro'
 
 const { SITE_URL } = Astro.locals
-const { channel, before = true, after = true, isItem = false } = Astro.props
+const { channel, before = true, after = true, isItem = false, searchQuery = '' } = Astro.props
 const posts = channel.posts ?? []
 
 const beforeCursor = posts[posts.length - 1]?.id
@@ -16,6 +16,21 @@ const afterCursor = posts[0]?.id
   <slot name="header">
     <Header channel={channel} />
   </slot>
+
+  {
+    searchQuery && (
+      <div class="text-box search-info">
+        {posts.length > 0 ? (
+          <p>
+            Found {posts.length} result{posts.length !== 1 ? 's' : ''} for "{searchQuery}"
+          </p>
+        ) : (
+          <p>No results found for "{searchQuery}"</p>
+        )}
+      </div>
+    )
+  }
+
   <div class="items">
     {posts.map((post) => <Item post={post} isItem={isItem} />)}
   </div>
@@ -43,3 +58,11 @@ const afterCursor = posts[0]?.id
     }
   </div>
 </Layout>
+
+<style>
+  .search-info {
+    color: var(--secondary-color);
+    background-color: var(--code-background-color);
+    margin-bottom: 1rem;
+  }
+</style>
