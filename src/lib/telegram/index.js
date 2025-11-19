@@ -185,29 +185,9 @@ function getPost($, item, { channel, staticProxy, index = 0 }) {
 
 const unnessaryHeaders = ['host', 'cookie', 'origin', 'referer']
 
-export async function getChannelInfo(Astro, { before = '', after = '', q = '', type = 'list', id = '' } = {}) {
-  // Cache key without search query to reuse base data
-  const baseCacheKey = JSON.stringify({ before, after, q: '', type, id })
-  const cachedResult = cache.get(baseCacheKey)
-  const isRealtimeSearch = Boolean(q)
-
-  // If we have cached data, use it for search instead of fetching again
-  if (cachedResult && !isRealtimeSearch) {
-    console.info('Match Cache', { before, after, q, type, id })
-    // Deep clone to avoid modifying cached data
-    const result = JSON.parse(JSON.stringify(cachedResult))
-
-    // Apply search filtering if needed
-    if (q) {
-      result.posts = filterAndHighlightPosts(result.posts, q)
-    }
-
-    return result
-  }
-
-  // Where t.me can also be telegram.me, telegram.dog
+// Fetch single channel data
+async function fetchSingleChannel(Astro, channel, { before = '', after = '', id = '' } = {}) {
   const host = getEnv(import.meta.env, Astro, 'TELEGRAM_HOST') ?? 't.me'
-  const channel = getEnv(import.meta.env, Astro, 'CHANNEL')
   const staticProxy = getEnv(import.meta.env, Astro, 'STATIC_PROXY') ?? '/static/'
 
   const url = id ? `https://${host}/${channel}/${id}?embed=1&mode=tme` : `https://${host}/s/${channel}`
@@ -219,7 +199,7 @@ export async function getChannelInfo(Astro, { before = '', after = '', q = '', t
     }
   })
 
-  console.info('Fetching from Telegram', url, { before, after, q, type, id })
+  console.info('Fetching from Telegram', url, { channel, before, after, id })
   const html = await $fetch(url, {
     headers,
     query: {
@@ -231,21 +211,90 @@ export async function getChannelInfo(Astro, { before = '', after = '', q = '', t
   })
 
   const $ = cheerio.load(html, {}, false)
+  
   if (id) {
-    const post = getPost($, null, { channel, staticProxy })
-    cache.set(baseCacheKey, post)
-    return post
+    return getPost($, null, { channel, staticProxy })
   }
+
   const posts = $('.tgme_channel_history  .tgme_widget_message_wrap')?.map((index, item) => {
-    return getPost($, item, { channel, staticProxy, index })
+    const post = getPost($, item, { channel, staticProxy, index })
+    return { ...post, channel } // Add channel info to each post
   })?.get()?.reverse().filter(post => ['text'].includes(post.type) && post.id && post.content)
 
-  const channelInfo = {
+  return {
     posts,
     title: $('.tgme_channel_info_header_title')?.text(),
     description: $('.tgme_channel_info_description')?.text(),
     descriptionHTML: modifyHTMLContent($, $('.tgme_channel_info_description'))?.html(),
     avatar: $('.tgme_page_photo_image img')?.attr('src'),
+    channel,
+  }
+}
+
+export async function getChannelInfo(Astro, { before = '', after = '', q = '', type = 'list', id = '' } = {}) {
+  // Check if multi-channel mode is enabled
+  const channelsEnv = getEnv(import.meta.env, Astro, 'CHANNELS')
+  const channels = channelsEnv ? channelsEnv.split(',').map(c => c.trim()).filter(Boolean) : []
+  const singleChannel = getEnv(import.meta.env, Astro, 'CHANNEL')
+  
+  const isMultiChannel = channels.length > 0
+  const targetChannels = isMultiChannel ? channels : [singleChannel]
+
+  // Cache key without search query to reuse base data
+  const baseCacheKey = JSON.stringify({ channels: targetChannels, before, after, q: '', type, id })
+  const cachedResult = cache.get(baseCacheKey)
+  const isRealtimeSearch = Boolean(q)
+
+  // If we have cached data, use it for search instead of fetching again
+  if (cachedResult && !isRealtimeSearch) {
+    console.info('Match Cache', { channels: targetChannels, before, after, q, type, id })
+    const result = JSON.parse(JSON.stringify(cachedResult))
+
+    if (q) {
+      result.posts = filterAndHighlightPosts(result.posts, q)
+    }
+
+    return result
+  }
+
+  // Fetch data from all channels
+  const channelDataPromises = targetChannels.map(channel => 
+    fetchSingleChannel(Astro, channel, { before, after, id }).catch(error => {
+      console.error(`Failed to fetch channel ${channel}:`, error)
+      return null
+    })
+  )
+
+  const channelDataList = (await Promise.all(channelDataPromises)).filter(Boolean)
+
+  if (id) {
+    // For single post view, return the first valid result
+    const post = channelDataList[0]
+    cache.set(baseCacheKey, post)
+    return post
+  }
+
+  // Aggregate posts from all channels
+  const allPosts = channelDataList.flatMap(data => data.posts || [])
+  
+  // Sort by datetime (newest first)
+  allPosts.sort((a, b) => new Date(b.datetime) - new Date(a.datetime))
+
+  // Use first channel as primary channel for title, description and avatar
+  const primaryChannel = channelDataList[0]
+  
+  const channelInfo = {
+    posts: allPosts,
+    title: primaryChannel?.title,
+    description: primaryChannel?.description,
+    descriptionHTML: primaryChannel?.descriptionHTML,
+    avatar: primaryChannel?.avatar,
+    channels: channelDataList.map(d => ({
+      name: d.channel,
+      title: d.title,
+      avatar: d.avatar,
+    })),
+    isMultiChannel,
   }
 
   // Always cache the base data (without search filtering)

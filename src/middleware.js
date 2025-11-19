@@ -1,4 +1,9 @@
 export async function onRequest(context, next) {
+  // Pass Cloudflare runtime environment to locals
+  if (context.runtime?.env) {
+    context.locals.runtime = context.runtime
+  }
+
   context.locals.SITE_URL = `${import.meta.env.SITE ?? ''}${import.meta.env.BASE_URL}`
   context.locals.RSS_URL = `${context.locals.SITE_URL}rss.xml`
   context.locals.RSS_PREFIX = ''

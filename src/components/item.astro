@@ -10,9 +10,9 @@ const timezone = getEnv(import.meta.env, Astro, 'TIMEZONE')
 locale && dayjs.locale(locale)
 
 const { SITE_URL } = Astro.locals
-const { post, isItem } = Astro.props
+const { post, isItem, showChannelBadge = false } = Astro.props
 
-const channel = getEnv(import.meta.env, Astro, 'CHANNEL')
+const channel = post.channel || getEnv(import.meta.env, Astro, 'CHANNEL')
 const COMMENTS = getEnv(import.meta.env, Astro, 'COMMENTS')
 
 const datetime = dayjs(post.datetime).tz(timezone)
@@ -26,6 +26,11 @@ const timeago = datetime.isBefore(dayjs().subtract(1, 'w')) ? datetime.format('H
       <a href={`${SITE_URL}posts/${post.id}`} title={post.datetime} class="item-link">
         <time datetime={post.datetime} title={timeago}>{timeago}</time>
       </a>
+      {showChannelBadge && post.channel && (
+        <span class="channel-badge" title={`来自频道: ${post.channel}`}>
+          @{post.channel}
+        </span>
+      )}
     </div>
   </div>
   {post.content.length > 0 && <div class={`text-box content`} set:html={post.content} />}

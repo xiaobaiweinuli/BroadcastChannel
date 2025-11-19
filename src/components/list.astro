@@ -32,7 +32,7 @@ const afterCursor = posts[0]?.id
   }
 
   <div class="items">
-    {posts.map((post) => <Item post={post} isItem={isItem} />)}
+    {posts.map((post) => <Item post={post} isItem={isItem} showChannelBadge={channel.isMultiChannel} />)}
   </div>
 
   <div class="pages-container">
