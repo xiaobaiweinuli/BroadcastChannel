@@ -211,7 +211,7 @@ async function fetchSingleChannel(Astro, channel, { before = '', after = '', id 
   })
 
   const $ = cheerio.load(html, {}, false)
-  
+
   if (id) {
     return getPost($, null, { channel, staticProxy })
   }
@@ -231,14 +231,15 @@ async function fetchSingleChannel(Astro, channel, { before = '', after = '', id 
   }
 }
 
-export async function getChannelInfo(Astro, { before = '', after = '', q = '', type = 'list', id = '' } = {}) {
+export async function getChannelInfo(Astro, { before = '', after = '', q = '', type = 'list', id = '', singleChannel = '' } = {}) {
   // Check if multi-channel mode is enabled
   const channelsEnv = getEnv(import.meta.env, Astro, 'CHANNELS')
   const channels = channelsEnv ? channelsEnv.split(',').map(c => c.trim()).filter(Boolean) : []
-  const singleChannel = getEnv(import.meta.env, Astro, 'CHANNEL')
-  
-  const isMultiChannel = channels.length > 0
-  const targetChannels = isMultiChannel ? channels : [singleChannel]
+  const defaultChannel = getEnv(import.meta.env, Astro, 'CHANNEL')
+
+  // If singleChannel is specified, only fetch that channel
+  const isMultiChannel = channels.length > 0 && !singleChannel
+  const targetChannels = singleChannel ? [singleChannel] : (isMultiChannel ? channels : [defaultChannel])
 
   // Cache key without search query to reuse base data
   const baseCacheKey = JSON.stringify({ channels: targetChannels, before, after, q: '', type, id })
@@ -258,31 +259,39 @@ export async function getChannelInfo(Astro, { before = '', after = '', q = '', t
   }
 
   // Fetch data from all channels
-  const channelDataPromises = targetChannels.map(channel => 
-    fetchSingleChannel(Astro, channel, { before, after, id }).catch(error => {
+  const channelDataPromises = targetChannels.map((channel) =>
+    fetchSingleChannel(Astro, channel, { before, after, id }).catch((error) => {
       console.error(`Failed to fetch channel ${channel}:`, error)
       return null
-    })
+    }),
   )
 
   const channelDataList = (await Promise.all(channelDataPromises)).filter(Boolean)
 
   if (id) {
-    // For single post view, return the first valid result
-    const post = channelDataList[0]
-    cache.set(baseCacheKey, post)
-    return post
+    // For single post view, find the first valid result with actual content
+    const post = channelDataList.find((data) => data && data.id && data.content)
+    if (post) {
+      cache.set(baseCacheKey, post)
+      return post
+    }
+    // If no valid post found, return null or first result
+    const fallback = channelDataList[0]
+    if (fallback) {
+      cache.set(baseCacheKey, fallback)
+    }
+    return fallback
   }
 
   // Aggregate posts from all channels
   const allPosts = channelDataList.flatMap(data => data.posts || [])
-  
+
   // Sort by datetime (newest first)
   allPosts.sort((a, b) => new Date(b.datetime) - new Date(a.datetime))
 
   // Use first channel as primary channel for title, description and avatar
   const primaryChannel = channelDataList[0]
-  
+
   const channelInfo = {
     posts: allPosts,
     title: primaryChannel?.title,
@@ -294,7 +303,7 @@ export async function getChannelInfo(Astro, { before = '', after = '', q = '', t
       title: d.title,
       avatar: d.avatar,
     })),
-    isMultiChannel,
+    isMultiChannel: isMultiChannel && !singleChannel,
   }
 
   // Always cache the base data (without search filtering)

@@ -1,0 +1,111 @@
+---
+import Layout from '../layouts/base.astro'
+import Header from '../components/header.astro'
+import { getChannelInfo } from '../lib/telegram'
+
+const channel = await getChannelInfo(Astro)
+
+channel.seo = {
+  title: 'Channels',
+}
+
+// Get all channels info
+const channels = channel.channels || []
+---
+
+<Layout channel={channel} id="main-container">
+  <slot name="header">
+    <Header channel={channel} />
+  </slot>
+
+  <div class="section-title">Channels</div>
+
+  {
+    channels.length === 0 ? (
+      <div class="text-box">
+        <p>No channels configured. Set CHANNELS environment variable to enable multi-channel mode.</p>
+        <p>Example: CHANNELS=channel1,channel2,channel3</p>
+      </div>
+    ) : (
+      <div class="channels-list">
+        {channels.map((ch) => (
+          <a href={`/channels/${ch.name}`} class="channel-item">
+            <div class="channel-avatar">
+              {ch.avatar && (
+                <img
+                  src={ch.avatar.startsWith('http') ? `/static/${ch.avatar}` : ch.avatar}
+                  alt={ch.title}
+                  loading="lazy"
+                />
+              )}
+            </div>
+            <div class="channel-info">
+              <div class="channel-title">{ch.title}</div>
+              <div class="channel-name">@{ch.name}</div>
+            </div>
+          </a>
+        ))}
+      </div>
+    )
+  }
+</Layout>
+
+<style>
+  .channels-list {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
+
+  .channel-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background-color: var(--code-background-color);
+    border-radius: 8px;
+    text-decoration: none;
+    color: var(--primary-color);
+    transition: all 0.2s ease;
+  }
+
+  .channel-item:hover {
+    background-color: var(--hover-background-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .channel-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+    background-color: var(--secondary-color);
+  }
+
+  .channel-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .channel-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .channel-title {
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin-bottom: 0.25rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .channel-name {
+    color: var(--secondary-color);
+    font-size: 0.9rem;
+  }
+</style>

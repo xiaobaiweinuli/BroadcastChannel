@@ -22,10 +22,10 @@ export async function GET(Astro) {
     site: url.origin,
     trailingSlash: false,
     stylesheet: getEnv(import.meta.env, Astro, 'RSS_BEAUTIFY') ? '/rss.xsl' : undefined,
-    items: posts.map(item => ({
-      link: `posts/${item.id}`,
-      title: item.title,
-      description: item.description,
+    items: posts.map((item) => ({
+      link: item.channel ? `posts/${item.channel}/${item.id}` : `posts/${item.id}`,
+      title: item.title || item.text?.substring(0, 100) || `Post ${item.id}`,
+      description: item.text || item.title || '',
       pubDate: new Date(item.datetime),
       content: sanitizeHtml(item.content, {
         allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img', 'video', 'audio']),

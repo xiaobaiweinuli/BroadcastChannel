@@ -55,6 +55,17 @@ const HEADER_INJECT = getEnv(import.meta.env, Astro, 'HEADER_INJECT')
 const FOOTER_INJECT = getEnv(import.meta.env, Astro, 'FOOTER_INJECT')
 const TAGS = getEnv(import.meta.env, Astro, 'TAGS')
 const LINKS = getEnv(import.meta.env, Astro, 'LINKS')
+
+// Check if multi-channel mode is enabled
+const channelsEnv = getEnv(import.meta.env, Astro, 'CHANNELS')
+const channels = channelsEnv
+  ? channelsEnv
+      .split(',')
+      .map((c) => c.trim())
+      .filter(Boolean)
+  : []
+const SHOW_CHANNELS = channels.length > 1
+
 const navs = (getEnv(import.meta.env, Astro, 'NAVS') || '')
   .split(';')
   .filter(Boolean)
@@ -68,11 +79,27 @@ const navs = (getEnv(import.meta.env, Astro, 'NAVS') || '')
 ---
 
 <!doctype html>
-<html lang={locale ?? 'en'} data-theme="light">
+<html lang={locale ?? 'en'}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#f4f1ec" />
+    <script is:inline>
+      // 立即执行，避免闪烁
+      ;(() => {
+        const STORAGE_KEY = 'bc-theme-preference'
+        const stored = localStorage.getItem(STORAGE_KEY)
+        if (stored) {
+          document.documentElement.dataset.theme = stored
+        }
+        else {
+          const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+          const hour = new Date().getHours()
+          const shouldUseDark = prefersDark || hour >= 19 || hour < 6
+          document.documentElement.dataset.theme = shouldUseDark ? 'dark' : 'light'
+        }
+      })()
+    </script>
     <link rel="alternate" type="application/rss+xml" title={`${RSS_PREFIX}${channel?.title}`} href={RSS_URL} />
     <style is:inline>
       @view-transition {
@@ -105,6 +132,19 @@ const navs = (getEnv(import.meta.env, Astro, 'NAVS') || '')
                   Home
                 </a>
               </div>
+              {
+                SHOW_CHANNELS ? (
+                  <div class="nav-item">
+                    <a
+                      href={`${SITE_URL}channels`}
+                      title="Channels"
+                      class={`nav-link ${pathname === '/channels' || pathname.startsWith('/channels/') ? 'current' : ''}`}
+                    >
+                      Channels
+                    </a>
+                  </div>
+                ) : null
+              }
               {
                 TAGS ? (
                   <div class="nav-item">
@@ -169,9 +209,11 @@ const navs = (getEnv(import.meta.env, Astro, 'NAVS') || '')
     </a>
     <Fragment set:html={FOOTER_INJECT} />
     <script is:inline>
-      (() => {
-        if (typeof window === 'undefined') return
-        if (document.getElementById('image-preview-overlay')) return
+      ;(() => {
+        if (typeof window === 'undefined') 
+return
+        if (document.getElementById('image-preview-overlay')) 
+return
 
         const overlay = document.createElement('div')
         overlay.id = 'image-preview-overlay'
@@ -216,7 +258,8 @@ const navs = (getEnv(import.meta.env, Astro, 'NAVS') || '')
         }
 
         const show = (list, startIndex = 0) => {
-          if (!Array.isArray(list) || !list.length) return
+          if (!Array.isArray(list) || !list.length) 
+return
           images = list
           index = Math.min(Math.max(startIndex, 0), images.length - 1)
           updateView()
@@ -229,13 +272,15 @@ const navs = (getEnv(import.meta.env, Astro, 'NAVS') || '')
         }
 
         const showPrev = () => {
-          if (!images.length) return
+          if (!images.length) 
+return
           index = (index - 1 + images.length) % images.length
           updateView()
         }
 
         const showNext = () => {
-          if (!images.length) return
+          if (!images.length) 
+return
           index = (index + 1) % images.length
           updateView()
         }
@@ -255,30 +300,35 @@ const navs = (getEnv(import.meta.env, Astro, 'NAVS') || '')
         })
 
         document.addEventListener('keydown', (event) => {
-          if (!overlay.classList.contains('is-visible')) return
+          if (!overlay.classList.contains('is-visible')) 
+return
           if (event.key === 'Escape') {
             close()
           }
-          else if (event.key === 'ArrowLeft') {
+ else if (event.key === 'ArrowLeft') {
             showPrev()
           }
-          else if (event.key === 'ArrowRight') {
+ else if (event.key === 'ArrowRight') {
             showNext()
           }
         })
 
         document.addEventListener('click', (event) => {
           const button = event.target.closest('.image-preview-button[data-image-index]')
-          if (!button) return
+          if (!button) 
+return
 
           const container = button.closest('.image-list-container')
-          if (!container) return
+          if (!container) 
+return
 
           const buttons = [...container.querySelectorAll('.image-preview-button[data-image-url]')]
-          if (!buttons.length) return
+          if (!buttons.length) 
+return
 
           const list = buttons.map((btn) => btn.dataset.imageUrl).filter(Boolean)
-          if (!list.length) return
+          if (!list.length) 
+return
 
           const startIndex = Number(button.dataset.imageIndex) || 0
           show(list, Math.min(startIndex, list.length - 1))
@@ -286,9 +336,8 @@ const navs = (getEnv(import.meta.env, Astro, 'NAVS') || '')
       })()
     </script>
     <script is:inline>
-      (() => {
-        if (typeof window === 'undefined')
-          return
+      ;(() => {
+        if (typeof window === 'undefined') return
 
         const STORAGE_KEY = 'bc-theme-preference'
         const root = document.documentElement
@@ -303,8 +352,7 @@ const navs = (getEnv(import.meta.env, Astro, 'NAVS') || '')
         }
 
         const updateToggleButton = (theme) => {
-          if (!toggleButton)
-            return
+          if (!toggleButton) return
           toggleButton.dataset.theme = theme
           toggleButton.setAttribute('aria-label', theme === 'dark' ? '切换到浅色模式' : '切换到深色模式')
         }
@@ -326,8 +374,7 @@ const navs = (getEnv(import.meta.env, Astro, 'NAVS') || '')
         const startAutoTimer = () => {
           clearInterval(autoTimer)
           autoTimer = setInterval(() => {
-            if (!localStorage.getItem(STORAGE_KEY))
-              applyTheme(computeAutoTheme())
+            if (!localStorage.getItem(STORAGE_KEY)) applyTheme(computeAutoTheme())
           }, 60 * 1000)
         }
 
@@ -335,8 +382,7 @@ const navs = (getEnv(import.meta.env, Astro, 'NAVS') || '')
         startAutoTimer()
 
         prefersDark.addEventListener('change', () => {
-          if (!localStorage.getItem(STORAGE_KEY))
-            syncTheme()
+          if (!localStorage.getItem(STORAGE_KEY)) syncTheme()
         })
 
         if (toggleButton) {

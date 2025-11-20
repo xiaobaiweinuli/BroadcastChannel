@@ -313,9 +313,14 @@ body.preview-open {
   border: 1px solid var(--border-color);
   font-weight: 500;
   vertical-align: middle;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .channel-badge:hover {
   background-color: var(--highlight-color);
   color: var(--primary-color);
+  border-color: var(--highlight-color);
+  transform: translateY(-1px);
 }

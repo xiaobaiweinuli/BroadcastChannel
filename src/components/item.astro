@@ -23,14 +23,24 @@ const timeago = datetime.isBefore(dayjs().subtract(1, 'w')) ? datetime.format('H
   <div class="time-box">
     <div class="dot"></div>
     <div class="time">
-      <a href={`${SITE_URL}posts/${post.id}`} title={post.datetime} class="item-link">
+      <a
+        href={post.channel ? `${SITE_URL}posts/${post.channel}/${post.id}` : `${SITE_URL}posts/${post.id}`}
+        title={post.datetime}
+        class="item-link"
+      >
         <time datetime={post.datetime} title={timeago}>{timeago}</time>
       </a>
-      {showChannelBadge && post.channel && (
-        <span class="channel-badge" title={`来自频道: ${post.channel}`}>
-          @{post.channel}
-        </span>
-      )}
+      {
+        showChannelBadge && post.channel && (
+          <a
+            href={`${SITE_URL}channels/${post.channel}`}
+            class="channel-badge"
+            title={`查看频道: ${post.channel}`}
+          >
+            @{post.channel}
+          </a>
+        )
+      }
     </div>
   </div>
   {post.content.length > 0 && <div class={`text-box content`} set:html={post.content} />}

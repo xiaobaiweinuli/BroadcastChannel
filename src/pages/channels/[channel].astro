@@ -1,0 +1,29 @@
+---
+import List from '../../components/list.astro'
+import { getChannelInfo } from '../../lib/telegram'
+import { getEnv } from '../../lib/env'
+
+const { channel: channelName } = Astro.params
+
+// Validate channel exists in CHANNELS config
+const channelsEnv = getEnv(import.meta.env, Astro, 'CHANNELS')
+const channels = channelsEnv
+  ? channelsEnv
+      .split(',')
+      .map((c) => c.trim())
+      .filter(Boolean)
+  : []
+
+if (!channels.includes(channelName)) {
+  return Astro.redirect('/channels')
+}
+
+// Fetch single channel data
+const channel = await getChannelInfo(Astro, { singleChannel: channelName })
+
+channel.seo = {
+  title: channel.title,
+}
+---
+
+<List channel={channel} after={false} />

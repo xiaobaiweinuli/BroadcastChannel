@@ -1,8 +1,21 @@
 ---
 import List from '../components/list.astro'
 import { getChannelInfo } from '../lib/telegram'
+import { getEnv } from '../lib/env'
 
-const channel = await getChannelInfo(Astro)
+// In multi-channel mode, only show the first channel on homepage
+const channelsEnv = getEnv(import.meta.env, Astro, 'CHANNELS')
+const channels = channelsEnv
+  ? channelsEnv
+      .split(',')
+      .map((c) => c.trim())
+      .filter(Boolean)
+  : []
+const firstChannel = channels.length > 0 ? channels[0] : null
+
+const channel = firstChannel
+  ? await getChannelInfo(Astro, { singleChannel: firstChannel })
+  : await getChannelInfo(Astro)
 ---
 
 <List channel={channel} after={false} />
