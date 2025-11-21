@@ -55,11 +55,13 @@ items: posts.map((item) => ({
 ### 逻辑说明
 
 **title 字段**：
+
 1. 优先使用 `item.title`（如果存在）
 2. 如果为空，使用 `item.text` 的前100个字符
 3. 如果还是为空，使用 `Post {id}` 作为后备
 
 **description 字段**：
+
 1. 优先使用 `item.text`（完整的纯文本内容）
 2. 如果为空，使用 `item.title`
 3. 如果还是为空，使用空字符串
@@ -80,6 +82,7 @@ items: posts.map((item) => ({
 ## 效果
 
 现在 RSS 美化视图会正确显示：
+
 - ✅ 标题（title）
 - ✅ 描述内容（description）
 - ✅ 完整内容（content）

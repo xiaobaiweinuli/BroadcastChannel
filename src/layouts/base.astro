@@ -223,16 +223,10 @@ return
         overlay.innerHTML = `
           <div class="preview-backdrop" data-preview-close></div>
           <div class="preview-content" role="dialog" aria-modal="true">
-            <div class="preview-nav-wrapper prev-wrapper">
-              <button type="button" class="preview-nav prev" aria-label="Previous image">&lsaquo;</button>
-            </div>
-            <div class="preview-image-wrapper">
-              <img src="" alt="" />
-              <button type="button" class="preview-close" aria-label="Close image preview" data-preview-close>&times;</button>
-            </div>
-            <div class="preview-nav-wrapper next-wrapper">
-              <button type="button" class="preview-nav next" aria-label="Next image">&rsaquo;</button>
-            </div>
+            <img src="" alt="" />
+            <button type="button" class="preview-close" aria-label="Close image preview" data-preview-close>&times;</button>
+            <button type="button" class="preview-nav prev" aria-label="Previous image">&lsaquo;</button>
+            <button type="button" class="preview-nav next" aria-label="Next image">&rsaquo;</button>
           </div>
         `
         document.body.appendChild(overlay)

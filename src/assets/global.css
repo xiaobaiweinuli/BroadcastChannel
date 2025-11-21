@@ -185,3 +185,100 @@ html {
 body.preview-open {
   overflow: hidden;
 }
+
+/* 图片预览基础样式 */
+#image-preview-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+#image-preview-overlay.is-visible {
+  display: flex;
+}
+
+#image-preview-overlay .preview-backdrop {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+}
+
+#image-preview-overlay .preview-content {
+  position: relative;
+  z-index: 1;
+  display: inline-block;
+  max-width: 90vw;
+  max-height: 90vh;
+}
+
+#image-preview-overlay img {
+  display: block;
+  max-width: 90vw;
+  max-height: 90vh;
+  border-radius: var(--media-border-radius);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadows);
+  object-fit: contain;
+  background: #000;
+}
+
+#image-preview-overlay .preview-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 1.5rem;
+  line-height: 1;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  z-index: 2;
+}
+
+#image-preview-overlay .preview-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  border: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  font-size: 1.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+#image-preview-overlay .preview-nav.prev {
+  left: -48px;
+}
+
+#image-preview-overlay .preview-nav.next {
+  right: -48px;
+}
+
+#image-preview-overlay .preview-nav:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+@media screen and (max-width: 600px) {
+  #image-preview-overlay .preview-nav.prev {
+    left: 8px;
+  }
+
+  #image-preview-overlay .preview-nav.next {
+    right: 8px;
+  }
+}
