@@ -1,9 +1,11 @@
 ---
 // Redirect search form submissions to the proper search route
 const q = Astro.url.searchParams.get('q') || ''
+const channel = Astro.url.searchParams.get('channel') || ''
 
 if (q) {
-  return Astro.redirect(`/search/${encodeURIComponent(q)}`)
+  const searchUrl = `/search/${encodeURIComponent(q)}${channel ? `?channel=${encodeURIComponent(channel)}` : ''}`
+  return Astro.redirect(searchUrl)
 }
 
 // If no query, redirect to home

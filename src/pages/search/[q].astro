@@ -5,22 +5,26 @@ import { getChannelInfo } from '../../lib/telegram'
 // Handle both /search/keyword and /search/tag/tagname
 const rawQuery = Astro.url.searchParams.get('q') || decodeURIComponent(Astro.params.q || '')
 const isTagRoute = Astro.url.pathname.includes('/search/tag/')
+const channelParam = Astro.url.searchParams.get('channel') || ''
 
 let q = rawQuery
 if (isTagRoute && !rawQuery.startsWith('#')) {
   q = `#${rawQuery}`
 }
 
+// If channel parameter is provided, search only in that channel
 const channel = await getChannelInfo(Astro, {
   q,
+  singleChannel: channelParam || undefined,
 })
 
 const isTagSearch = q.startsWith('#')
 const searchType = isTagSearch ? 'Tag' : 'Search'
 const displayQuery = isTagSearch ? q.substring(1) : q
+const scopeText = channelParam ? ` in ${channel.title}` : ''
 
 channel.seo = {
-  title: `${searchType}: ${displayQuery}`,
+  title: `${searchType}: ${displayQuery}${scopeText}`,
 }
 ---
 

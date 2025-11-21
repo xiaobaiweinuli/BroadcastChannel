@@ -55,16 +55,7 @@ const HEADER_INJECT = getEnv(import.meta.env, Astro, 'HEADER_INJECT')
 const FOOTER_INJECT = getEnv(import.meta.env, Astro, 'FOOTER_INJECT')
 const TAGS = getEnv(import.meta.env, Astro, 'TAGS')
 const LINKS = getEnv(import.meta.env, Astro, 'LINKS')
-
-// Check if multi-channel mode is enabled
-const channelsEnv = getEnv(import.meta.env, Astro, 'CHANNELS')
-const channels = channelsEnv
-  ? channelsEnv
-      .split(',')
-      .map((c) => c.trim())
-      .filter(Boolean)
-  : []
-const SHOW_CHANNELS = channels.length > 1
+const CHANNELS = getEnv(import.meta.env, Astro, 'CHANNELS')
 
 const navs = (getEnv(import.meta.env, Astro, 'NAVS') || '')
   .split(';')
@@ -133,7 +124,7 @@ const navs = (getEnv(import.meta.env, Astro, 'NAVS') || '')
                 </a>
               </div>
               {
-                SHOW_CHANNELS ? (
+                CHANNELS ? (
                   <div class="nav-item">
                     <a
                       href={`${SITE_URL}channels`}
@@ -182,10 +173,21 @@ const navs = (getEnv(import.meta.env, Astro, 'NAVS') || '')
               }
             </div>
             <input class="search-icon" name="icon" type="checkbox" placeholder="Search" />
-            <form class="search-form" action={searchAction} method="get">
+            <form class="search-form" action={searchAction} method="get" id="search-form">
               {GOOGLE_SEARCH_SITE ? <input type="hidden" name="as_sitesearch" value={GOOGLE_SEARCH_SITE} /> : null}
-              <input type="text" name="q" placeholder="Search" />
+              <input type="text" name="q" placeholder="Search" id="search-input" />
+              <input type="hidden" name="channel" value="" id="search-channel" />
             </form>
+            {
+              CHANNELS && (pathname.startsWith('/channels/') || pathname.startsWith('/search/')) && !pathname.includes('/posts/') && (
+                <div class="search-scope">
+                  <label class="search-scope-label">
+                    <input type="checkbox" id="search-current-channel" />
+                    <span>仅搜索当前频道</span>
+                  </label>
+                </div>
+              )
+            }
             <div class="copyright-wrap">
               Powered by
               <a
@@ -221,10 +223,16 @@ return
         overlay.innerHTML = `
           <div class="preview-backdrop" data-preview-close></div>
           <div class="preview-content" role="dialog" aria-modal="true">
-            <button type="button" class="preview-close" aria-label="Close image preview" data-preview-close>&times;</button>
-            <button type="button" class="preview-nav prev" aria-label="Previous image">&lsaquo;</button>
-            <img src="" alt="" />
-            <button type="button" class="preview-nav next" aria-label="Next image">&rsaquo;</button>
+            <div class="preview-nav-wrapper prev-wrapper">
+              <button type="button" class="preview-nav prev" aria-label="Previous image">&lsaquo;</button>
+            </div>
+            <div class="preview-image-wrapper">
+              <img src="" alt="" />
+              <button type="button" class="preview-close" aria-label="Close image preview" data-preview-close>&times;</button>
+            </div>
+            <div class="preview-nav-wrapper next-wrapper">
+              <button type="button" class="preview-nav next" aria-label="Next image">&rsaquo;</button>
+            </div>
           </div>
         `
         document.body.appendChild(overlay)
@@ -408,6 +416,75 @@ return
           toggleButton.addEventListener('dblclick', (event) => {
             event.preventDefault()
             resetToAuto()
+          })
+        }
+      })()
+    </script>
+    <script is:inline>
+      // 搜索范围选择
+      ;(() => {
+        if (typeof window === 'undefined') return
+
+        const searchForm = document.getElementById('search-form')
+        const searchInput = document.getElementById('search-input')
+        const searchChannelInput = document.getElementById('search-channel')
+        const searchCurrentChannelCheckbox = document.getElementById('search-current-channel')
+
+        if (!searchForm || !searchInput || !searchChannelInput) return
+
+        // 从当前URL提取频道名
+        const getCurrentChannel = () => {
+          const pathname = window.location.pathname
+          const match = pathname.match(/^\/channels\/([^\/]+)/)
+          return match ? match[1] : null
+        }
+
+        // 从URL参数中获取频道名
+        const getChannelFromUrl = () => {
+          const params = new URLSearchParams(window.location.search)
+          return params.get('channel') || null
+        }
+
+        // 处理搜索表单提交
+        searchForm.addEventListener('submit', (e) => {
+          // 优先使用URL中的频道参数（搜索结果页），其次使用当前频道（频道页）
+          const channelFromUrl = getChannelFromUrl()
+          const currentChannel = getCurrentChannel()
+          const targetChannel = channelFromUrl || currentChannel
+          
+          if (searchCurrentChannelCheckbox && searchCurrentChannelCheckbox.checked && targetChannel) {
+            searchChannelInput.value = targetChannel
+          }
+          else {
+            searchChannelInput.value = ''
+          }
+        })
+
+        // 初始化复选框状态
+        if (searchCurrentChannelCheckbox) {
+          const initCheckboxState = () => {
+            const channelFromUrl = getChannelFromUrl()
+            const currentChannel = getCurrentChannel()
+            
+            // 如果URL中有channel参数，说明正在进行频道搜索
+            if (channelFromUrl) {
+              searchCurrentChannelCheckbox.checked = true
+              localStorage.setItem('search-current-channel-preference', 'true')
+            }
+            // 如果在频道页面，从localStorage恢复用户偏好
+            else if (currentChannel) {
+              const savedPreference = localStorage.getItem('search-current-channel-preference')
+              if (savedPreference === 'true') {
+                searchCurrentChannelCheckbox.checked = true
+              }
+            }
+          }
+
+          initCheckboxState()
+
+          // 保存用户偏好
+          searchCurrentChannelCheckbox.addEventListener('change', () => {
+            localStorage.setItem('search-current-channel-preference', searchCurrentChannelCheckbox.checked.toString())
           })
         }
       })()

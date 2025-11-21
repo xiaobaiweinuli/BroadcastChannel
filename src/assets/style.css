@@ -1092,3 +1092,34 @@ mark.search-highlight {
     font-size: 0.875rem;
   }
 }
+
+/* 搜索范围选择 */
+.search-scope {
+  margin-top: 12px;
+  padding: 0 24px;
+}
+
+.search-scope-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: var(--secondary-color);
+  cursor: pointer;
+  user-select: none;
+}
+
+.search-scope-label input[type='checkbox'] {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--highlight-color);
+}
+
+.search-scope-label:hover {
+  color: var(--foreground-color);
+}
+
+.search-scope-label span {
+  line-height: 1;
+}

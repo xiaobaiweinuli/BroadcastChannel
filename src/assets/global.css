@@ -181,3 +181,7 @@ html {
     }
   }
 }
+
+body.preview-open {
+  overflow: hidden;
+}

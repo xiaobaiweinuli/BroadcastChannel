@@ -4,13 +4,18 @@ import { getChannelInfo } from '../../../lib/telegram'
 
 const tagName = decodeURIComponent(Astro.params.tag || '')
 const q = `#${tagName}`
+const channelParam = Astro.url.searchParams.get('channel') || ''
 
+// If channel parameter is provided, search only in that channel
 const channel = await getChannelInfo(Astro, {
   q,
+  singleChannel: channelParam || undefined,
 })
 
+const scopeText = channelParam ? ` in ${channel.title}` : ''
+
 channel.seo = {
-  title: `Tag: ${tagName}`,
+  title: `Tag: ${tagName}${scopeText}`,
 }
 ---
 
