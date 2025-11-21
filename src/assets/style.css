@@ -939,7 +939,46 @@ li:has(input[type='checkbox']:checked:disabled)::before {
   }
 
   #header {
-    padding: 0px;
+    padding: 16px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .header-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 20px;
+  }
+
+  .header-title {
+    flex: 1;
+    min-width: 0;
+    font-size: clamp(16px, 4vw, 20px);
+    padding-right: 0;
+  }
+
+  .header-icons {
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .header-icons a {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    min-height: 32px;
+  }
+
+  .social-icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .theme-toggle {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
   }
 
   .items {
@@ -953,7 +992,7 @@ li:has(input[type='checkbox']:checked:disabled)::before {
     background-color: var(--background-color);
     position: sticky;
     top: 0;
-    box-shadow: 0px 4px 16px -16px rgba(0, 0, 0, 0.5);
+    box-shadow: none;
     height: auto;
     overflow-y: visible;
   }
@@ -961,13 +1000,21 @@ li:has(input[type='checkbox']:checked:disabled)::before {
   #aside-container .nav {
     display: flex;
     flex-wrap: wrap;
-    gap: 2px;
+    gap: 8px;
     padding: 16px;
+    box-shadow: none;
   }
 
   #aside-container .nav-item {
     font-size: 14px;
     line-height: 1;
+    margin-bottom: 0;
+  }
+
+  .nav-link:link,
+  .nav-link:visited {
+    padding: 8px 14px;
+    font-size: 14px;
   }
 
   .section-title {
@@ -1008,4 +1055,40 @@ mark.search-highlight {
   padding: 2px 4px;
   border-radius: 2px;
   font-weight: 500;
+}
+
+/* Additional mobile optimizations */
+@media screen and (max-width: 400px) {
+  #header {
+    padding: 12px;
+  }
+
+  .header-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 16px;
+  }
+
+  .header-title {
+    font-size: 16px;
+  }
+
+  .header-icons {
+    gap: 6px;
+  }
+
+  .social-icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .theme-toggle {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+
+  .theme-toggle__icon {
+    font-size: 0.875rem;
+  }
 }
