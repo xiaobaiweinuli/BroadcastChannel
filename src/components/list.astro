@@ -24,11 +24,18 @@ const paginationBase = baseUrl || Astro.url.pathname.replace(/\/(before|after)\/
     searchQuery && (
       <div class="text-box search-info">
         {posts.length > 0 ? (
-          <p>
-            Found {posts.length} result{posts.length !== 1 ? 's' : ''} for "{searchQuery}"
-          </p>
+          <div>
+            <p>
+              找到 {posts.length} 条结果
+              {channel.searchStats?.totalSearched && (
+                <span> (共搜索 {channel.searchStats.totalSearched} 条消息)</span>
+              )}
+            </p>
+          </div>
         ) : (
-          <p>No results found for "{searchQuery}"</p>
+          <div>
+            <p>未找到 "{searchQuery}" 的结果</p>
+          </div>
         )}
       </div>
     )

@@ -13,6 +13,15 @@ const cache = new LRUCache({
   },
 })
 
+// Separate cache for search results with longer TTL
+const searchCache = new LRUCache({
+  ttl: 1000 * 60 * 5, // 5 minutes for search results
+  maxSize: 100 * 1024 * 1024, // 100MB
+  sizeCalculation: (item) => {
+    return JSON.stringify(item).length
+  },
+})
+
 function getVideoStickers($, item, { staticProxy, index }) {
   return $(item).find('.js-videosticker_video')?.map((_index, video) => {
     const url = $(video)?.attr('src')
@@ -231,7 +240,52 @@ async function fetchSingleChannel(Astro, channel, { before = '', after = '', id 
   }
 }
 
-export async function getChannelInfo(Astro, { before = '', after = '', q = '', type = 'list', id = '', singleChannel = '' } = {}) {
+// Search in all messages from channel (single request, fast)
+async function searchInChannel(Astro, targetChannels, q) {
+  console.info('Starting search for:', q, 'in channels:', targetChannels)
+
+  // Fetch all channels in parallel (each channel is one request to /s/channel)
+  const channelDataPromises = targetChannels.map((channel) =>
+    fetchSingleChannel(Astro, channel, {}).catch((error) => {
+      console.error(`Failed to fetch channel ${channel}:`, error)
+      return null
+    }),
+  )
+
+  const channelDataList = (await Promise.all(channelDataPromises)).filter(Boolean)
+
+  // Aggregate all posts from all channels
+  const allPosts = channelDataList.flatMap(data => data.posts || [])
+
+  // Sort by datetime (newest first)
+  allPosts.sort((a, b) => new Date(b.datetime) - new Date(a.datetime))
+
+  // Filter and highlight based on search query
+  const filteredPosts = filterAndHighlightPosts(allPosts, q)
+
+  console.info(`Search complete. Found ${filteredPosts.length} matching posts out of ${allPosts.length} total`)
+
+  // Use first channel as primary channel for title, description and avatar
+  const primaryChannel = channelDataList[0]
+
+  return {
+    posts: filteredPosts,
+    title: primaryChannel?.title,
+    description: primaryChannel?.description,
+    descriptionHTML: primaryChannel?.descriptionHTML,
+    avatar: primaryChannel?.avatar,
+    channels: channelDataList.map(d => ({
+      name: d.channel,
+      title: d.title,
+      avatar: d.avatar,
+    })),
+    isMultiChannel: targetChannels.length > 1,
+    totalSearched: allPosts.length,
+    totalMatched: filteredPosts.length,
+  }
+}
+
+export async function getChannelInfo(Astro, { before = '', after = '', q = '', type = 'list', id = '', singleChannel = '', searchAll = false } = {}) {
   // Check if multi-channel mode is enabled
   const channelsEnv = getEnv(import.meta.env, Astro, 'CHANNELS')
   const channels = channelsEnv ? channelsEnv.split(',').map(c => c.trim()).filter(Boolean) : []
@@ -241,21 +295,33 @@ export async function getChannelInfo(Astro, { before = '', after = '', q = '', t
   const isMultiChannel = channels.length > 0 && !singleChannel
   const targetChannels = singleChannel ? [singleChannel] : (isMultiChannel ? channels : [defaultChannel])
 
+  // For search mode with query
+  if (q) {
+    // Check search cache first
+    const searchCacheKey = JSON.stringify({ channels: targetChannels, q })
+    const cachedSearchResult = searchCache.get(searchCacheKey)
+    
+    if (cachedSearchResult) {
+      console.info('Search Cache Hit', { q, channels: targetChannels })
+      return JSON.parse(JSON.stringify(cachedSearchResult))
+    }
+
+    // Perform search (single request per channel, very fast)
+    const searchResult = await searchInChannel(Astro, targetChannels, q)
+
+    // Cache the search result
+    searchCache.set(searchCacheKey, searchResult)
+    return searchResult
+  }
+
   // Cache key without search query to reuse base data
   const baseCacheKey = JSON.stringify({ channels: targetChannels, before, after, q: '', type, id })
   const cachedResult = cache.get(baseCacheKey)
-  const isRealtimeSearch = Boolean(q)
 
-  // If we have cached data, use it for search instead of fetching again
-  if (cachedResult && !isRealtimeSearch) {
-    console.info('Match Cache', { channels: targetChannels, before, after, q, type, id })
-    const result = JSON.parse(JSON.stringify(cachedResult))
-
-    if (q) {
-      result.posts = filterAndHighlightPosts(result.posts, q)
-    }
-
-    return result
+  // If we have cached data, use it
+  if (cachedResult) {
+    console.info('Match Cache', { channels: targetChannels, before, after, type, id })
+    return JSON.parse(JSON.stringify(cachedResult))
   }
 
   // Fetch data from all channels
@@ -306,17 +372,8 @@ export async function getChannelInfo(Astro, { before = '', after = '', q = '', t
     isMultiChannel: isMultiChannel && !singleChannel,
   }
 
-  // Always cache the base data (without search filtering)
-  if (!isRealtimeSearch) {
-    cache.set(baseCacheKey, channelInfo)
-  }
-
-  // Apply search filtering if needed (on a copy to avoid modifying cache)
-  if (q) {
-    const result = JSON.parse(JSON.stringify(channelInfo))
-    result.posts = filterAndHighlightPosts(result.posts, q)
-    return result
-  }
+  // Always cache the base data
+  cache.set(baseCacheKey, channelInfo)
 
   return channelInfo
 }

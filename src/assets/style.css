@@ -1123,3 +1123,17 @@ mark.search-highlight {
 .search-scope-label span {
   line-height: 1;
 }
+
+/* Search highlight styles */
+.search-highlight {
+  background-color: var(--highlight-soft);
+  color: var(--highlight-color);
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-weight: 500;
+}
+
+:root[data-theme='dark'] .search-highlight {
+  background-color: rgba(106, 209, 255, 0.2);
+  color: var(--highlight-color);
+}

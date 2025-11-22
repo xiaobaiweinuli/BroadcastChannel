@@ -26,6 +26,13 @@ const scopeText = channelParam ? ` in ${channel.title}` : ''
 channel.seo = {
   title: `${searchType}: ${displayQuery}${scopeText}`,
 }
+
+// Add search stats to channel object for display
+channel.searchStats = {
+  totalSearched: channel.totalSearched,
+  totalMatched: channel.totalMatched,
+  query: q,
+}
 ---
 
 <List channel={channel} before={false} after={false} searchQuery={q} />
